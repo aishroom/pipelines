@@ -21,6 +21,29 @@ def ref_repository = ''
 def pipeline_template = ''
 def paramsLink ='{}'
 
+
+
+def getTypeProjects() {
+	def typeProjects=[
+		'Infra':[
+			'has_sonarProperties':false,
+			'path_pipeline':'pipelined/devops-infra',
+		]
+		'Node Microfrontend':[
+			'has_sonarProperties':true,
+			'path_pipeline':'microfrontend',
+		]
+	];
+	def retunrObject = ['typeProjects':typeProjects,
+	'typeProjectsNames':[]]
+	typeProjects.each {
+            key, value ->
+                retunrObject.typeProjectsNames.add(key);
+        }
+
+	return retunrObject;
+}	
+
 @NonCPS
 def getBuildUser() {
     if(currentBuild.rawBuild.getCause(Cause.UserIdCause) != null)
@@ -192,6 +215,11 @@ pipeline {
                              "team_slug: ${team_slug}\n" +
                              "ref_repository: ${ref_repository}\n" +
                              "pipeline_template: ${pipeline_template}\n"
+
+                        has_sonarProperties=typeProjects.typeProjects["$tipo_proyecto"].has_sonarProperties
+                        path_pipeline=typeProjects.typeProjects["$tipo_proyecto"].path_pipeline
+
+
                         sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Se cargaron correctamente los datos diligenciados', "${env.BUILD_NUMBER}", null);
                     }catch (Exception e) {
                         error "Error chargin pipeline variables: ${e.message}"
@@ -228,7 +256,6 @@ pipeline {
                             def has_sonarProperties=false;
 
                             def team_json;
-                            def path_template="";
                             def path_pipeline=""; 
 
                             println('auth: '+auth)
