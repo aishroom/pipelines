@@ -229,7 +229,7 @@ pipeline {
                             )
                         ]) {
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
-                            def authx =  "token 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";
+                            def authx =  "token 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";
                             def resultDynamoDB = null;
                             def githubUser = null;
                             def response_http = null;
