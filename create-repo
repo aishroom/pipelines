@@ -223,7 +223,7 @@ pipeline {
                     script{
                         withCredentials([
                             usernamePassword(
-                                credentialsId: 'jenkins-github-bolivar',
+                                credentialsId: 'github-jenkins-unicauca',
                                 usernameVariable: 'GIT_USERNAME',
                                 passwordVariable: 'GIT_PASSWORD'
                             )
