@@ -336,16 +336,16 @@ pipeline {
                                             }
                                         }
 
-                                        sh "git add -A && git -c user.name='danielmej25' -c user.email='danielmej@unicauca.edu.co' commit -m 'new templates'"
+                                        sh "git add -A && git -c user.name='${GIT_USERNAME}' -c user.email='danielmej@unicauca.edu.co' commit -m 'new templates'"
 
                                         sh "git checkout -b develop"
-                                        sh "git push https://danielmej25:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
+                                        sh "git push https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
 
                                         sh "git checkout -b stage"
-                                        sh "git push -f https://danielmej25:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
+                                        sh "git push -f https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
 
                                         sh "git checkout master"
-                                        sh "git push -f https://danielmej25:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
+                                        sh "git push -f https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repo_name}.git"
 
                                     }
                                 } catch(Exception e) {

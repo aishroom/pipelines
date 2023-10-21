@@ -11,7 +11,7 @@
               configuredByUrl(true)
               repoOwner("aishroom")
               repository("${repo["name"]}")
-              credentialsId('jenkins-bolivar')
+              credentialsId('github-jenkins-unicauca')
               repositoryUrl("https://github.com/aishroom/${repo["name"]}")
               traits {
                   gitHubBranchDiscovery {
@@ -37,7 +37,7 @@
                 name('')
                 url('https://github.com/aishroom/pipelines')
                 refspec('')
-                credentialsId('jenkins-bolivar')
+                credentialsId('github-jenkins-unicauca')
               }
             }
             branches {
