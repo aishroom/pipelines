@@ -4,8 +4,7 @@ import jenkins.model.*
 import hudson.triggers.*
 
 def apiUrlGithub='https://api.github.com/orgs/aishroom/'
-def credentialsGithub="GITHUB_FEOG_TOKEN" 
-def credentialsGithubClone="jenkins-github-bolivar" 
+def credentialsGithubClone="github-jenkins-unicauca" 
 def repoTemplates="https://github.com/aishroom/jenkins-devops-templates.git" 
 def typeProjects = getTypeProjects();
 def accessTokenGenesis = ':D'
@@ -168,7 +167,6 @@ pipeline {
                         urlGenesis = params.url_genesis
                         println "URL_GENESIS: ${urlGenesis}"
                         try{
-                            def jsonResponse = new JsonSlurper().parseText(response.content)
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Conexión Exitosa', "${env.BUILD_NUMBER}", null);
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
                         }catch (Exception e) {
@@ -211,10 +209,6 @@ pipeline {
                              "ref_repository: ${ref_repository}\n" +
                              "pipeline_template: ${pipeline_template}\n"
 
-                        has_sonarProperties=typeProjects.typeProjects["$tipo_proyecto"].has_sonarProperties
-                        path_pipeline=typeProjects.typeProjects["$tipo_proyecto"].path_pipeline
-
-
                         sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Se cargaron correctamente los datos diligenciados', "${env.BUILD_NUMBER}", null);
                     }catch (Exception e) {
                         error "Error chargin pipeline variables: ${e.message}"
@@ -228,7 +222,6 @@ pipeline {
                 steps {
                     script{
                         withCredentials([
-                            string(credentialsId: credentialsGithub, variable: 'TOKEN'),
                             usernamePassword(
                                 credentialsId: 'jenkins-github-bolivar',
                                 usernameVariable: 'GIT_USERNAME',
@@ -236,7 +229,6 @@ pipeline {
                             )
                         ]) {
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
-                            //def auth =  "token "+TOKEN;
                             def auth =  "token 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";
                             def resultDynamoDB = null;
                             def githubUser = null;
