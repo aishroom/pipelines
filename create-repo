@@ -253,7 +253,7 @@ pipeline {
 
                             team_json = readJSON text: response_http.content
                             try {
-                                def bodyCreateRepo = """{"name":"${repo_name}","private":true,"team_id":${team_json.id},"auto_init":true}"""
+                                def bodyCreateRepo = """{"name":"${repo_name}","private":false,"team_id":${team_json.id},"auto_init":true}"""
 
                                 response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', url: url_create_repo, requestBody: bodyCreateRepo,  customHeaders: [[name: 'Authorization', value:auth ]]
 
