@@ -229,7 +229,7 @@ pipeline {
                             )
                         ]) {
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
-                            def auth =  "token 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";
+                            def authx =  "token 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";
                             def resultDynamoDB = null;
                             def githubUser = null;
                             def response_http = null;
@@ -245,8 +245,8 @@ pipeline {
                             def team_json;
                             def path_pipeline=""; 
 
-                            println('auth: '+auth)
-                            response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, customHeaders: [[name: 'Authorization', value:auth ]]
+                            println('248 auth: '+authx)
+                            response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, customHeaders: [[name: 'Authorization', value:authx ]]
 
                             println('Status: '+response_http.status)
                             println('Response: '+response_http.content)
@@ -255,7 +255,7 @@ pipeline {
                             try {
                                 def bodyCreateRepo = """{"name":"${repo_name}","private":false,"team_id":${team_json.id},"auto_init":true}"""
 
-                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', url: url_create_repo, requestBody: bodyCreateRepo,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', url: url_create_repo, requestBody: bodyCreateRepo,  customHeaders: [[name: 'Authorization', value:authx ]]
 
                                 println('Status: '+response_http.status)
                                 println('Response: '+response_http.content)
@@ -264,8 +264,8 @@ pipeline {
 
                                 def bodyAddPermission = """{\"permission\":\"push\"}"""
 
-                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_permisions, requestBody: bodyAddPermission, customHeaders: [[name: 'Authorization', value:auth ]]
-                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, requestBody: '', customHeaders: [[name: 'Authorization', value:auth ]]
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_permisions, requestBody: bodyAddPermission, customHeaders: [[name: 'Authorization', value:authx ]]
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, requestBody: '', customHeaders: [[name: 'Authorization', value:authx ]]
                                 echo "269"
                                 sh "mkdir -p new_repo"
                                 dir ('new_repo') {
@@ -360,21 +360,21 @@ pipeline {
                                 def bodyProtectBranch = """{"required_status_checks":{"strict":true,"contexts":[]},"required_pull_request_reviews":{"require_code_owner_reviews":true},"restrictions":null,"required_linear_history":false,"allow_force_pushes":false,"allow_deletions":false,"enforce_admins":false}"""
 
                                 url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/master/protection";
-                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:authx ]]
 
                                 if(credential_dev != '-' && credential_dev != '' && credential_dev != null){
                                     url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/develop/protection";
-                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:authx ]]
                                 }
 
                                 if(credential_stg != '-' && credential_stg != '' && credential_stg != null){
                                     url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/stage/protection";
-                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:authx ]]
                                 }
 
                                 if(credential_pre != '-'  && credential_pre != '' && credential_pre != null){
                                     url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/pre/protection";
-                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:authx ]]
                                 }
 
                                 echo "path_pipeline: ${path_pipeline}"
