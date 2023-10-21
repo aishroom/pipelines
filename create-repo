@@ -28,7 +28,7 @@ def getTypeProjects() {
 		'Infra':[
 			'has_sonarProperties':false,
 			'path_pipeline':'pipelined/devops-infra',
-		]
+		],
 		'Node Microfrontend':[
 			'has_sonarProperties':true,
 			'path_pipeline':'microfrontend',
