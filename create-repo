@@ -8,7 +8,6 @@ def credentialsGithub="GITHUB_FEOG_TOKEN"
 def credentialsGithubClone="jenkins-github-bolivar" 
 def repoTemplates="https://github.com/aishroom/jenkins-devops-templates.git" 
 def typeProjects = getTypeProjects();
-def teamsList = getGitHubTeams();
 def accessTokenGenesis = ':D'
 def urlGenesis = ''
 def repo_name = ''
