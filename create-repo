@@ -205,9 +205,6 @@ pipeline {
                 steps {
                     script{
                         withCredentials([
-                            [$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                                credentialsId: "d285d661-a9a3-456c-8086-19a7bf973650",
-                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'],
                             string(credentialsId: credentialsGithub, variable: 'TOKEN'),
                             usernamePassword(
                                 credentialsId: 'jenkins-github-bolivar',
@@ -216,7 +213,8 @@ pipeline {
                             )
                         ]) {
                             sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
-                            def auth =  "token "+TOKEN;
+                            //def auth =  "token "+TOKEN;
+                            def auth =  "token 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";
                             def resultDynamoDB = null;
                             def githubUser = null;
                             def response_http = null;
