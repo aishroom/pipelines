@@ -377,7 +377,7 @@ pipeline {
                                 sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Ramas del repositorio protegidas', "${env.BUILD_NUMBER}", null);
                                 sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio Disponible', "${env.BUILD_NUMBER}", "https://github.com/aishroom/"+repo_name);
 
-                                /*jobDsl targets: ['dsl/createJob.groovy'].join('\n'),
+                                jobDsl targets: ['dsl/createJob.groovy'].join('\n'),
                                 removedJobAction: 'IGNORE',
                                 removedViewAction: 'IGNORE',
                                 lookupStrategy: 'JENKINS_ROOT',
@@ -386,8 +386,6 @@ pipeline {
                                     "repo":["name":"${repo_name}","pipeline":"${path_pipeline}"
                                     ]]
                                 sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Job creado correctamente en Jenkins', "${env.BUILD_NUMBER}", null);
-
-                                */
                         }
                     }
                 }
