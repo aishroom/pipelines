@@ -5,7 +5,7 @@ import hudson.triggers.*
 
 def apiUrlGithub='https://api.github.com/orgs/aishroom/'
 def credentialsGithubClone="github-jenkins-unicauca" 
-def repoTemplates="https://github.com/aishroom/jenkins-devops-templates.git" 
+def repoTemplates="https://github.com/aishroom/pipelines" 
 def typeProjects = getTypeProjects();
 def accessTokenGenesis = ':D'
 def urlGenesis = ''
@@ -340,7 +340,7 @@ pipeline {
                                             }
                                         }
 
-                                        sh "git add -A && git -c user.name='Devops Team' -c user.email='danielmej@unicauca.edu.co' commit -m 'new templates'"
+                                        sh "git add -A && git -c user.name='danielmej25' -c user.email='danielmej@unicauca.edu.co' commit -m 'new templates'"
 
                                         sh "git checkout -b develop"
                                         sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
