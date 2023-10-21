@@ -26,7 +26,7 @@ def getTypeProjects() {
 	def typeProjects=[
 		'Infra':[
 			'has_sonarProperties':false,
-			'path_pipeline':'pipelined/devops-infra',
+			'path_pipeline':'infra',
 		],
 		'Node Microfrontend':[
 			'has_sonarProperties':true,
@@ -50,8 +50,8 @@ def getBuildUser() {
     return null;
 }
 
-def sendStatusToGenesis(String urlGenesis, String accessToken, String objectId, String event,  String stage, String status, String jobId, String message){
-    if(accessToken == null || objectId == null || event == null || stage == null || status == null || jobId == null || accessToken == ''){
+def sendStatusToGenesis(String urlGenesis, String objectId, String event,  String stage, String status, String jobId, String message){
+    if(objectId == null || event == null || stage == null || status == null || jobId == null){
         println("No se pudo enviar la notificación a Genesis, faltan atributos en sendStatusToGenesis")
         return;
     }
@@ -70,7 +70,6 @@ def sendStatusToGenesis(String urlGenesis, String accessToken, String objectId, 
             httpMode: 'POST',
             contentType: 'APPLICATION_JSON',
             requestBody: jsonStringRequestBody,
-            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
             validResponseCodes: '200:599'
         )
         println "Status ${status} in ${stage} was sent"
@@ -83,8 +82,8 @@ def sendStatusToGenesis(String urlGenesis, String accessToken, String objectId, 
     }   
 }
 
-def saveCreatedRepositoryInGenesis(String urlGenesis, String accessToken, String observableId,  String nameRepo, String urlRepo, String message){
-    if(accessToken == null || observableId == null || nameRepo == null || urlRepo == null  || accessToken == ''){
+def saveCreatedRepositoryInGenesis(String urlGenesis, String observableId,  String nameRepo, String urlRepo, String message){
+    if(observableId == null || nameRepo == null || urlRepo == null){
         println("No se pudo crear el repo en  Genesis, faltan atributos en saveCreatedRepositoryInGenesis")
         return;
     }
@@ -101,7 +100,6 @@ def saveCreatedRepositoryInGenesis(String urlGenesis, String accessToken, String
             httpMode: 'POST',
             contentType: 'APPLICATION_JSON',
             requestBody: jsonStringRequestBody,
-            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
             validResponseCodes: '200:599'
         )
         println "Repo ${urlRepo}  was sent to genesis"
@@ -114,8 +112,8 @@ def saveCreatedRepositoryInGenesis(String urlGenesis, String accessToken, String
     }   
 }
 
-def updateOutPutVariable(String urlGenesis, String accessToken, String observableId, Number linkId,  String nameVariable, valueVariable, String message){
-    if(accessToken == null || observableId == null || linkId == null || nameVariable == null || valueVariable == null || accessToken == ''){
+def updateOutPutVariable(String urlGenesis, String observableId, Number linkId,  String nameVariable, valueVariable, String message){
+    if(observableId == null || linkId == null || nameVariable == null || valueVariable == null){
         println("No se pudo enviar la notificación a genesis, faltan atributos en sendStatusToGenesis")
         return;
     }
@@ -133,7 +131,6 @@ def updateOutPutVariable(String urlGenesis, String accessToken, String observabl
             httpMode: 'POST',
             contentType: 'APPLICATION_JSON',
             requestBody: jsonStringRequestBody,
-            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
             validResponseCodes: '200:599'
         )
         println "Status ${status} in ${stage} was sent"
@@ -172,12 +169,11 @@ pipeline {
                         println "URL_GENESIS: ${urlGenesis}"
                         try{
                             def jsonResponse = new JsonSlurper().parseText(response.content)
-                            accessTokenGenesis = jsonResponse.accessToken
-                            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Conexión Exitosa', "${env.BUILD_NUMBER}", null);
-                            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
+                            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Conexión Exitosa', "${env.BUILD_NUMBER}", null);
+                            sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
                         }catch (Exception e) {
                             error "Error al obtener el acceso a Genesis HTTP: ${e}"
-                            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "Error al obtener el acceso a genesis HTTP: ${e}");
+                            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "Error al obtener el acceso a genesis HTTP: ${e}");
 
                         }
                     }
@@ -219,10 +215,10 @@ pipeline {
                         path_pipeline=typeProjects.typeProjects["$tipo_proyecto"].path_pipeline
 
 
-                        sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Se cargaron correctamente los datos diligenciados', "${env.BUILD_NUMBER}", null);
+                        sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Se cargaron correctamente los datos diligenciados', "${env.BUILD_NUMBER}", null);
                     }catch (Exception e) {
                         error "Error chargin pipeline variables: ${e.message}"
-                        sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error cargando las variables al pipeline: ${e.message}");
+                        sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error cargando las variables al pipeline: ${e.message}");
                     }
                 }
             }
@@ -239,7 +235,7 @@ pipeline {
                                 passwordVariable: 'GIT_PASSWORD'
                             )
                         ]) {
-                            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
+                            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
                             //def auth =  "token "+TOKEN;
                             def auth =  "token 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";
                             def resultDynamoDB = null;
@@ -271,8 +267,8 @@ pipeline {
 
                                 println('Status: '+response_http.status)
                                 println('Response: '+response_http.content)
-                                saveCreatedRepositoryInGenesis(urlGenesis, accessTokenGenesis, params.id_observable, repo_name, "https://github.com/aishroom/${repo_name}", null)
-                                sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio de referencia', "${env.BUILD_NUMBER}", null);
+                                saveCreatedRepositoryInGenesis(urlGenesis, params.id_observable, repo_name, "https://github.com/aishroom/${repo_name}", null)
+                                sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio de referencia', "${env.BUILD_NUMBER}", null);
 
                                 def bodyAddPermission = """{\"permission\":\"push\"}"""
 
@@ -284,7 +280,7 @@ pipeline {
                                     git credentialsId: credentialsGithubClone, url: "https://github.com/aishroom/${repo_name}"
                                 }
 
-                                sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio de referencia cargado correctamente', "${env.BUILD_NUMBER}", null);
+                                sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio de referencia cargado correctamente', "${env.BUILD_NUMBER}", null);
                                 echo "Descargando el repositorio de referencia"
                                 sh "mkdir -p ref_repository"
 
@@ -292,7 +288,7 @@ pipeline {
                                     git credentialsId: credentialsGithubClone, url: ref_repository
                                     variablesJson = readJSON text: paramsLink
                                     varFiles = variablesJson.varFiles
-                                    sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Exportando variables de entrada en el repositorio de refrencia', "${env.BUILD_NUMBER}", null);
+                                    sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Exportando variables de entrada en el repositorio de refrencia', "${env.BUILD_NUMBER}", null);
                                     echo "Insertando variables en el repositorio de referencia"
                                     
                                     for (int i = 0; i < varFiles.size(); ++i) {
@@ -332,7 +328,7 @@ pipeline {
                                     path_pipeline=typeProjects.typeProjects["$tipo_proyecto"].path_pipeline
                                 
                                     echo "Subiendo el repositorio ya configurado"
-                                    sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio configurado', "${env.BUILD_NUMBER}", null);
+                                    sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio configurado', "${env.BUILD_NUMBER}", null);
                                     dir ('new_repo') {
                                         sh "mkdir .github"
                                         sh "touch .github/CODEOWNERS"
@@ -362,7 +358,7 @@ pipeline {
 
                                     }
                                 } catch(Exception e) {
-                                    sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error creando repositorio: ${e.message}");
+                                    sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error creando repositorio: ${e.message}");
                                     error "Error: "+ e.getMessage();
                                 }
                                 
@@ -387,8 +383,8 @@ pipeline {
                                 }
 
                                 echo "path_pipeline: ${path_pipeline}"
-                                sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Ramas del repositorio protegidas', "${env.BUILD_NUMBER}", null);
-                                sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio Disponible', "${env.BUILD_NUMBER}", "https://github.com/aishroom/"+repo_name);
+                                sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Ramas del repositorio protegidas', "${env.BUILD_NUMBER}", null);
+                                sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio Disponible', "${env.BUILD_NUMBER}", "https://github.com/aishroom/"+repo_name);
 
                                 /*jobDsl targets: ['dsl/createJob.groovy'].join('\n'),
                                 removedJobAction: 'IGNORE',
@@ -398,7 +394,7 @@ pipeline {
                                     "project": ["name":"${team_json.name}"],
                                     "repo":["name":"${repo_name}","pipeline":"${path_pipeline}"
                                     ]]
-                                sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Job creado correctamente en Jenkins', "${env.BUILD_NUMBER}", null);
+                                sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Job creado correctamente en Jenkins', "${env.BUILD_NUMBER}", null);
 
                                 */
                         }
@@ -412,20 +408,20 @@ pipeline {
         }
         success{
             echo "success"
-            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Proceso Exitoso', "${env.BUILD_NUMBER}", "sucess");
-            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", "DEFAULT");
+            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Proceso Exitoso', "${env.BUILD_NUMBER}", "sucess");
+            sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", "DEFAULT");
         }
         unstable {
             echo "unstable"
-            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'unestable', "${env.BUILD_NUMBER}", "unestable");
+            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'unestable', "${env.BUILD_NUMBER}", "unestable");
         }
         failure{
             echo "failure"
-            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "failure");
+            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "failure");
         } 
         aborted{
             echo "aborted"
-            sendStatusToGenesis(urlGenesis, accessTokenGenesis, params.id_observable, 'process', env.STAGE_NAME, 'aborted', "${env.BUILD_NUMBER}", "aborted");
+            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'aborted', "${env.BUILD_NUMBER}", "aborted");
         }
     }
 }
