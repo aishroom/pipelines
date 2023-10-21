@@ -340,7 +340,7 @@ pipeline {
                                             }
                                         }
 
-                                        sh "git add -A && git -c user.name='Devops Team' -c user.email='devopsteam@aishroom.com' commit -m 'new templates'"
+                                        sh "git add -A && git -c user.name='Devops Team' -c user.email='danielmej@unicauca.edu.co' commit -m 'new templates'"
 
                                         sh "git checkout -b develop"
                                         sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
