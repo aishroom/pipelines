@@ -226,10 +226,11 @@ pipeline {
                                 credentialsId: 'github-jenkins-unicauca',
                                 usernameVariable: 'GIT_USERNAME',
                                 passwordVariable: 'GIT_PASSWORD'
-                            )
+                            ),
+                            string(credentialsId: '	token_github', variable: 'tokenGitHub')
                         ]) {
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
-                            def authx =  "token " + GIT_PASSWORD;
+                            def authx =  "token " + tokenGitHub;
                             def resultDynamoDB = null;
                             def githubUser = null;
                             def response_http = null;
