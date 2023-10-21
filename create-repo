@@ -1,0 +1,463 @@
+@Library('Bolivar-Tools') _
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import jenkins.model.*
+import hudson.triggers.*
+
+def apiUrlGithub='https://api.github.com/orgs/aishroom/'
+def credentialsGithub="GITHUB_FEOG_TOKEN" 
+def credentialsGithubClone="jenkins-bolivar" 
+def repoTemplates="https://github.com/aishroom/jenkins-devops-templates.git" 
+def typeProjects = getTypeProjects();
+def teamsList = getGitHubTeams();
+def accessTokenDofi = ''
+def urlDofi = ''
+def repo_name = ''
+def team_slug = ''
+def credential_dev = ''
+def credential_stg = ''
+def credential_pre = ''
+def credential_prod = ''
+def ref_repository = ''
+def pipeline_template = ''
+def paramsLink ='{}'
+
+@NonCPS
+def getBuildUser() {
+    if(currentBuild.rawBuild.getCause(Cause.UserIdCause) != null)
+        return currentBuild.rawBuild.getCause(Cause.UserIdCause).getUserId()
+    return null;
+}
+
+def sendStatusToDofi(String urlDofi, String accessToken, String objectId, String event,  String stage, String status, String jobId, String message){
+    if(accessToken == null || objectId == null || event == null || stage == null || status == null || jobId == null || accessToken == ''){
+        println("No se pudo enviar la notificación a DOFI, faltan atributos en sendStatusToDofi")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['objectId'] = objectId
+    jsonRequestBody['event'] = event
+    jsonRequestBody['message'] = message
+    jsonRequestBody['stage'] = stage
+    jsonRequestBody['status'] = status
+    jsonRequestBody['jobId'] = jobId
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlDofi}/architecture/update-${event}",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
+            validResponseCodes: '200:599'
+        )
+        println "Status ${status} in ${stage} was sent"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Status ${status} in ${stage} was sent"
+            return;
+        }
+        error "Error al intentar notificar al cliente DOFI el estado de la ejecucion HTTP: ${e.message}"
+    }   
+}
+
+def saveCreatedRepositoryInDofi(String urlDofi, String accessToken, String observableId,  String nameRepo, String urlRepo, String message){
+    if(accessToken == null || observableId == null || nameRepo == null || urlRepo == null  || accessToken == ''){
+        println("No se pudo crear el repo en  DOFI, faltan atributos en saveCreatedRepositoryInDofi")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['observableId'] = observableId
+    jsonRequestBody['message'] = message
+    jsonRequestBody['nameRepo'] = nameRepo
+    jsonRequestBody['urlRepo'] = urlRepo
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlDofi}/architecture/create-repo",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
+            validResponseCodes: '200:599'
+        )
+        println "Repo ${urlRepo}  was sent to DOFI"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Repo ${urlRepo}  was sent to DOFI"
+            return;
+        }
+        error "No se pudo crear el repo en  DOFI, Error en saveCreatedRepositoryInDofi: ${e.message}"
+    }   
+}
+
+def updateOutPutVariable(String urlDofi, String accessToken, String observableId, Number linkId,  String nameVariable, valueVariable, String message){
+    if(accessToken == null || observableId == null || linkId == null || nameVariable == null || valueVariable == null || accessToken == ''){
+        println("No se pudo enviar la notificación a DOFI, faltan atributos en sendStatusToDofi")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['observableId'] = observableId
+    jsonRequestBody['linkId'] = linkId
+    jsonRequestBody['nameVariable'] = nameVariable
+    jsonRequestBody['valueVariable'] = valueVariable
+    jsonRequestBody['message'] = message
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlDofi}/architecture/update-output-variable",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            customHeaders:[[name:'Authorization', value:"Bearer ${accessToken}"]],
+            validResponseCodes: '200:599'
+        )
+        println "Status ${status} in ${stage} was sent"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Variable ${nameVariable} : ${valueVariable} was updated"
+            return;
+        }
+        error "Error al intentar notificar al cliente DOFI el estado de la ejecucion HTTP: ${e.message}"
+    }   
+}
+
+def getTrueInputValue(varFile, variableName) {
+    def trueInputVariable = varFile.variables.find { variable ->
+        variable.isInput && variable.name == variableName
+    }
+    return trueInputVariable ? trueInputVariable.value : null
+}
+
+def user = getBuildUser();
+print "user ${user}";
+
+pipeline {
+    agent {
+        node {
+            label 'devops-jenkins-agent-slave-terra156'
+        }
+    }
+    parameters {
+        string(name: 'id_observable', defaultValue: '', description: 'id observable', trim: true)
+        text(name: 'link', defaultValue: '', description: 'json variables')
+        string(name: 'url_dofi', defaultValue: '', description: 'url dofi', trim: true)
+    }
+    stages {
+        stage('LogIn in Dofi') {
+            when { expression { params.id_observable != '' } }
+            steps {
+                withCredentials([string(credentialsId: 'json-body-auth-dofi-ms', variable: 'BODY_AUTH_DOFI_MS')]) {
+                    script {
+                        urlDofi = params.url_dofi
+                        println "URL_DOFI: ${urlDofi}"
+                        try{
+                            def response = httpRequest(
+                                url: "${urlDofi}/auth/login",
+                                httpMode: 'POST',
+                                contentType: 'APPLICATION_JSON',
+                                requestBody: env.BODY_AUTH_DOFI_MS,
+                                validResponseCodes: '200:599'
+                            )
+                            println(response)
+                            if (response.status != 201) {
+                                error "No se pudo obtener el token. Código de respuesta: ${response.status}"
+                            }
+                            def jsonResponse = new JsonSlurper().parseText(response.content)
+                            accessTokenDofi = jsonResponse.accessToken
+                            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Conexión Exitosa', "${env.BUILD_NUMBER}", null);
+                            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
+                        }catch (Exception e) {
+                            error "Error al obtener el acceso a DOFI HTTP: ${e}"
+                            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "Error al obtener el acceso a DOFI HTTP: ${e}");
+
+                        }
+                    }
+                }
+            }
+        }
+        stage('Charge pipeline variables'){
+            steps {
+                script {
+                    try{
+                        paramsLink = params.link
+                        if(params.link == '' || params.link == '{}'){
+                            def response = httpRequest(
+                                url: "${urlDofi}/architecture/observer/parameters/${params.id_observable}",
+                                httpMode: 'GET',
+                                contentType: 'APPLICATION_JSON',
+                                customHeaders: [[name: 'Authorization', value: "Bearer ${accessTokenDofi}"]],
+                                validResponseCodes: '200:599'
+                            )
+                            
+                            if (response.status != 200) {
+                                error("No se pudo obtener los parametros error: ${response.status}")
+                            }
+                            
+                            paramsLink= response.getContent()
+                            println("Variables: ${paramsLink}")
+                        }
+                        def linkJson = new JsonSlurper().parseText(paramsLink)
+
+                        team_slug = linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name == 'TEAM_SLUG' }?.value
+                        repo_name =  linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name.contains('PROJECT_NAME') }?.value
+                        credential_dev = linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name == 'CREDENTIAL_DEV' }?.value
+                        credential_stg = linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name == 'CREDENTIAL_STG' }?.value
+                        credential_pre = linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name == 'CREDENTIAL_PRE' }?.value
+                        credential_prod = linkJson.varFiles.find { it.file == 'pipeline' }?.variables.find { it.name == 'CREDENTIAL_PROD' }?.value
+                        ref_repository = linkJson.repositoryRef
+                        pipeline_template = linkJson.linkProjectTypes[0]?.projectType?.name
+                        echo "repo_name: ${repo_name}\n" +
+                             "team_slug: ${team_slug}\n" +
+                             "credential_dev: ${credential_dev}\n" +
+                             "credential_stg: ${credential_stg}\n" +
+                             "credential_pre: ${credential_pre}\n" +
+                             "credential_prod: ${credential_prod}\n" +
+                             "ref_repository: ${ref_repository}\n" +
+                             "pipeline_template: ${pipeline_template}\n"
+                        sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Se cargaron correctamente los datos diligenciados', "${env.BUILD_NUMBER}", null);
+                    }catch (Exception e) {
+                        error "Error chargin pipeline variables: ${e.message}"
+                        sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error cargando las variables al pipeline: ${e.message}");
+                    }
+                }
+            }
+        }
+        stage('Create Repository') {
+             when { expression { repo_name != '' } }
+                steps {
+                    script{
+                        withCredentials([
+                            [$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                                credentialsId: "d285d661-a9a3-456c-8086-19a7bf973650",
+                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'],
+                            string(credentialsId: credentialsGithub, variable: 'TOKEN'),
+                            usernamePassword(
+                                credentialsId: 'jenkins-bolivar',
+                                usernameVariable: 'GIT_USERNAME',
+                                passwordVariable: 'GIT_PASSWORD'
+                            )
+                        ]) {
+                            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Creando repositorio en GitHub', "${env.BUILD_NUMBER}", null);
+                            def auth =  "token "+TOKEN;
+                            def resultDynamoDB = null;
+                            def githubUser = null;
+                            def response_http = null;
+                            def tipo_proyecto = pipeline_template
+                             
+                            def url_teams = "${apiUrlGithub}"+"teams/" + team_slug
+                            def url_create_repo = "${apiUrlGithub}"+"repos";
+                            def url_permisions = "${apiUrlGithub}"+"teams/${team_slug}/repos/aishroom/${repo_name}";
+
+                            def url_protect_repo = "";
+                            def has_sonarProperties=false;
+
+                            def team_json;
+                            def path_template="";
+                            def path_pipeline=""; 
+
+                            println('auth: '+auth)
+                            response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, customHeaders: [[name: 'Authorization', value:auth ]]
+
+                            println('Status: '+response_http.status)
+                            println('Response: '+response_http.content)
+
+                            team_json = readJSON text: response_http.content
+                            try {
+                                def bodyCreateRepo = """{"name":"${repo_name}","private":true,"team_id":${team_json.id},"auto_init":true}"""
+
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'POST', url: url_create_repo, requestBody: bodyCreateRepo,  customHeaders: [[name: 'Authorization', value:auth ]]
+
+                                println('Status: '+response_http.status)
+                                println('Response: '+response_http.content)
+                                saveCreatedRepositoryInDofi(urlDofi, accessTokenDofi, params.id_observable, repo_name, "https://github.com/aishroom/${repo_name}", null)
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio de referencia', "${env.BUILD_NUMBER}", null);
+
+                                def bodyAddPermission = """{\"permission\":\"push\"}"""
+
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_permisions, requestBody: bodyAddPermission, customHeaders: [[name: 'Authorization', value:auth ]]
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, requestBody: '', customHeaders: [[name: 'Authorization', value:auth ]]
+
+                                sh "mkdir -p new_repo"
+                                dir ('new_repo') {
+                                    git credentialsId: credentialsGithubClone, url: "https://github.com/aishroom/${repo_name}"
+                                }
+
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio de referencia cargado correctamente', "${env.BUILD_NUMBER}", null);
+                                echo "Descargando el repositorio de referencia"
+                                sh "mkdir -p ref_repository"
+
+                                dir ('ref_repository') { 
+                                    git credentialsId: credentialsGithubClone, url: ref_repository
+                                    variablesJson = readJSON text: paramsLink
+                                    varFiles = variablesJson.varFiles
+                                    sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Exportando variables de entrada en el repositorio de refrencia', "${env.BUILD_NUMBER}", null);
+                                    echo "Insertando variables en el repositorio de referencia"
+                                    
+                                    for (int i = 0; i < varFiles.size(); ++i) {
+                                        def file = varFiles[i]
+                                        def fileName = file.file
+                                        if (!file.isInput || fileName == "pipeline" || (file.isInput instanceof net.sf.json.JSONNull)) {
+                                            continue
+                                        }
+
+                                        for (int j = 0; j < file.variables.size(); ++j) {
+                                            def var = file.variables[j].name
+                                            def value = file.variables[j].value
+                                            if (!var) {
+                                                continue
+                                            }
+                                                
+                                            echo """awk -v pattern='%${var}%' -v replacement='${value}' '{gsub(pattern, replacement); print;}' ${fileName} > ${fileName}_tmp"""
+                                            sh """awk -v pattern='%${var}%' -v replacement='${value}' '{gsub(pattern, replacement); print;}' ${fileName} > ${fileName}_tmp"""
+                                            sh "rm ${fileName}"
+                                            sh "mv ${fileName}_tmp ${fileName}"
+                                        }
+                                    }
+                                    def var = "OBSERVABLE_ID"
+                                    def value = params.id_observable + " " + urlDofi
+                                    def fileName = "Jenkinsfile.json"
+
+                                    echo """awk -v pattern='%${var}%' -v replacement='${value}' '{gsub(pattern, replacement); print;}' ${fileName} > ${fileName}_tmp"""
+                                    sh """awk -v pattern='%${var}%' -v replacement='${value}' '{gsub(pattern, replacement); print;}' ${fileName} > ${fileName}_tmp"""
+                                    sh "rm ${fileName}"
+                                    sh "mv ${fileName}_tmp ${fileName}"
+
+                                    sh "rm -rf .git"
+                                    sh "cp -r . ../new_repo"
+                                }
+                                               
+                                    has_sonarProperties=typeProjects.typeProjects["$tipo_proyecto"].has_sonarProperties
+                                    path_pipeline=typeProjects.typeProjects["$tipo_proyecto"].path_pipeline
+                                
+                                    echo "Subiendo el repositorio ya configurado"
+                                    sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Cargando repositorio configurado', "${env.BUILD_NUMBER}", null);
+                                    dir ('new_repo') {
+                                        sh "mkdir .github"
+                                        sh "touch .github/CODEOWNERS"
+                                        sh "echo \"* @aishroom/${team_slug}\" >> .github/CODEOWNERS"
+
+                                        sh "git checkout master"
+                                        if (has_sonarProperties){
+                                            sh "sed  's/nombre_proyecto_git/'${repo_name}'/g' sonar-project.properties > sonar-project.properties_tmp"
+                                            sh "rm sonar-project.properties"
+                                            sh "mv sonar-project.properties_tmp sonar-project.properties"
+                                            withSonarQubeEnv('SonarCloud') {
+                                                echo 'Firts sonar execution'
+                                                sh "${tool("SonarScanner")}/bin/sonar-scanner"
+                                            }
+                                        }
+
+                                        sh "git add -A && git -c user.name='Devops Team' -c user.email='devopsteam@aishroom.com' commit -m 'new templates'"
+
+                                        if(credential_dev != '-' && credential_dev != '' && credential_dev != null){
+                                            sh "git checkout -b develop"
+                                            sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
+                                        }
+
+                                        if(credential_stg != '-' && credential_stg != '' && credential_stg != null){
+                                            sh "git checkout -b stage"
+                                            sh "git push -f https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
+                                        }
+
+                                        if(credential_pre != '-'  && credential_pre != '' && credential_pre != null){
+                                            sh "git checkout -b pre"
+                                            sh "git push -f https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
+                                        }
+
+                                        if(credential_prod != '-' && credential_prod != '' && credential_prod != null){
+                                            sh "git checkout master"
+                                            sh "git push -f https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/aishroom/${repo_name}.git"
+                                        }
+                                    }
+                                } catch(Exception e) {
+                                    sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'error', "${env.BUILD_NUMBER}", "Error creando repositorio: ${e.message}");
+
+                                    error "Error: "+ e.getMessage();
+                                }
+                                
+                                def bodyProtectBranch = """{"required_status_checks":{"strict":true,"contexts":[]},"required_pull_request_reviews":{"require_code_owner_reviews":true},"restrictions":null,"required_linear_history":false,"allow_force_pushes":false,"allow_deletions":false,"enforce_admins":false}"""
+
+                                url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/master/protection";
+                                response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+
+                                if(credential_dev != '-' && credential_dev != '' && credential_dev != null){
+                                    url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/develop/protection";
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                }
+
+                                if(credential_stg != '-' && credential_stg != '' && credential_stg != null){
+                                    url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/stage/protection";
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                }
+
+                                if(credential_pre != '-'  && credential_pre != '' && credential_pre != null){
+                                    url_protect_repo = "https://api.github.com/repos/aishroom/"+repo_name+"/branches/pre/protection";
+                                    response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_protect_repo, requestBody: bodyProtectBranch,  customHeaders: [[name: 'Authorization', value:auth ]]
+                                }
+
+                                echo "path_pipeline: ${path_pipeline}"
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Ramas del repositorio protegidas', "${env.BUILD_NUMBER}", null);
+                                
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio Disponible', "${env.BUILD_NUMBER}", "https://github.com/aishroom/"+repo_name);
+
+                                jobDsl targets: ['dsl/createJob.groovy'].join('\n'),
+                                removedJobAction: 'IGNORE',
+                                removedViewAction: 'IGNORE',
+                                lookupStrategy: 'JENKINS_ROOT',
+                                additionalParameters: [
+                                    "project": ["name":"${team_json.name}"],
+                                    "repo":["name":"${repo_name}","pipeline":"${path_pipeline}"
+                                    ]]
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Job creado correctamente en Jenkins', "${env.BUILD_NUMBER}", null);
+                                
+                                
+                                def dynamoItem = [
+                                    "proyecto":["S":"${team_slug}/${repo_name}"],
+                                    "github_url":["S":"https://github.com/aishroom/${repo_name}.git"],
+                                    "credentialsDevId":["S":"${credential_dev}"],
+                                    "credentialsStageId":["S":"${credential_stg}"],
+                                    "credentialsQaId":["S":"${credential_pre}"],
+                                    "credentialsProdId":["S":"${credential_prod}"],
+                                    "slug":["S":"${team_json.slug}"],
+                                    "tipo_proyecto":["S":"${tipo_proyecto}"],
+                                    "createdByEmail":["S":"${user}"],
+                                    "createdByGithubUsername":["S":"${githubUser}"]
+                                ];
+
+                                writeFile file: 'item.json', text: JsonOutput.toJson(dynamoItem)
+
+                                def saveItem = sh (returnStdout: true, script:'aws dynamodb put-item --table-name projects_github --item file://item.json')
+                                sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio insertado en DynamoDB', "${env.BUILD_NUMBER}", null);
+                                echo "$dynamoItem"
+                        }
+                    }
+                }
+        }
+    }
+    post { 
+        always { 
+            cleanWs()
+        }
+        success{
+            echo "success"
+            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'Proceso Exitoso', "${env.BUILD_NUMBER}", "sucess");
+            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", "DEFAULT");
+        }
+        unstable {
+            echo "unstable"
+            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'unestable', "${env.BUILD_NUMBER}", "unestable");
+        }
+        failure{
+            echo "failure"
+            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "failure");
+        } 
+        aborted{
+            echo "aborted"
+            sendStatusToDofi(urlDofi, accessTokenDofi, params.id_observable, 'process', env.STAGE_NAME, 'aborted', "${env.BUILD_NUMBER}", "aborted");
+        }
+    }
+}
