@@ -172,7 +172,7 @@ pipeline {
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Conexión Exitosa', "${env.BUILD_NUMBER}", null);
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
                         }catch (Exception e) {
-                            error "Error al obtener el acceso a Genesis HTTP: ${e}"
+                            error "Error al estabilizar conexión a Genesis HTTP: ${e}"
                             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "Error al obtener el acceso a genesis HTTP: ${e}");
 
                         }
