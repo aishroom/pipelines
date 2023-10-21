@@ -266,14 +266,17 @@ pipeline {
 
                                 response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'PUT', url: url_permisions, requestBody: bodyAddPermission, customHeaders: [[name: 'Authorization', value:auth ]]
                                 response_http = httpRequest acceptType: 'APPLICATION_JSON', contentType: 'APPLICATION_JSON', httpMode: 'GET', url: url_teams, requestBody: '', customHeaders: [[name: 'Authorization', value:auth ]]
-
+                                echo "269"
                                 sh "mkdir -p new_repo"
                                 dir ('new_repo') {
+                                    echo "272"
                                     git credentialsId: credentialsGithubClone, url: "https://github.com/aishroom/${repo_name}"
                                 }
-
+                                echo "275"
                                 sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Repositorio de referencia cargado correctamente', "${env.BUILD_NUMBER}", null);
+                                echo "277"
                                 echo "Descargando el repositorio de referencia"
+                                echo "278"
                                 sh "mkdir -p ref_repository"
 
                                 dir ('ref_repository') { 
