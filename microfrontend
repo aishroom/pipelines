@@ -1,11 +1,63 @@
 pipeline {
     agent any
 
-    stages {
-        stage('Saludo') {
+    tools {
+        nodejs '18.16.0'
+    }
+    
+    stages {     
+        stage('Install Dependencies') {
             steps {
-                echo 'Hello, World'
+                sh 'node -v'
+                sh 'npm -v'
+                sh 'npm i'
             }
+        }
+    
+        stage('Unit Tests') {
+            steps {
+                sh 'npm test'
+            }
+        }
+
+        stage('Code Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+                    withSonarQubeEnv('SonarCloud') {
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
+                    def qg = waitForQualityGate()
+                    echo "Quality Gate status: ${qg.status}"
+                    if (qg.status != 'OK' && qg.status != 'NONE') {
+                        error "Pipeline aborted due to Quality Gate failure: ${qg.status}"
+                    }
+                }
+           }
+        }
+
+        stage('Deploy GitHub') {
+            when {
+                expression { 
+                    return env.BRANCH_NAME == 'master'
+                }
+            }
+            steps {
+                sh 'npm run deploy'
+            }
+        }
+
+    }
+
+    post { 
+        failure {
+            
+        }
+        aborted{
+            
+        }
+        success{
+            
         }
     }
 }
