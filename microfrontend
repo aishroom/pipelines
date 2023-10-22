@@ -54,7 +54,7 @@ pipeline {
                         ]) {
                             def jobName = env.JOB_NAME
                             def repoName = jobName.split('/')[1]
-                            sh 'git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repoName}'
+                            sh "git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repoName}"
                             sh 'npm run deploy'
                         }
                 }
