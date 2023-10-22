@@ -43,7 +43,19 @@ pipeline {
                 }
             }
             steps {
-                sh 'npm run deploy'
+                script{
+                        withCredentials([
+                            usernamePassword(
+                                credentialsId: 'github-jenkins-unicauca',
+                                usernameVariable: 'GIT_USERNAME',
+                                passwordVariable: 'GIT_PASSWORD'
+                            ),
+                            string(credentialsId: '	token_github', variable: 'tokenGitHub')
+                        ]) {
+                            sh 'git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/$GITHUB_REPOSITORY'
+                            sh 'npm run deploy'
+                        }
+                
             }
         }
 
