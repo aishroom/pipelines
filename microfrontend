@@ -52,7 +52,9 @@ pipeline {
                             ),
                             string(credentialsId: '	token_github', variable: 'tokenGitHub')
                         ]) {
-                            sh 'git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/$GITHUB_REPOSITORY'
+                            def jobName = env.JOB_NAME
+                            def repoName = jobName.split('/')[1]
+                            sh 'git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repoName}'
                             sh 'npm run deploy'
                         }
                 }
