@@ -48,16 +48,4 @@ pipeline {
         }
 
     }
-
-    post { 
-        failure {
-            
-        }
-        aborted{
-            
-        }
-        success{
-            
-        }
-    }
 }
