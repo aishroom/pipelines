@@ -55,9 +55,9 @@ pipeline {
                             sh 'git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/$GITHUB_REPOSITORY'
                             sh 'npm run deploy'
                         }
-                
-            }
-        }
+                }
+            }   
 
+        }
     }
 }
