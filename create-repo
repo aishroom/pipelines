@@ -398,7 +398,7 @@ pipeline {
         success{
             echo "success"
             sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'Proceso Exitoso', "${env.BUILD_NUMBER}", "sucess");
-            sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", "DEFAULT");
+            //sendStatusToGenesis(urlGenesis, params.id_observable, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", "DEFAULT");
         }
         unstable {
             echo "unstable"

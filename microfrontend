@@ -1,3 +1,113 @@
+def urlGenesis = ''
+def observableId = ''
+
+@NonCPS
+def getBuildUser() {
+    if(currentBuild.rawBuild.getCause(Cause.UserIdCause) != null)
+        return currentBuild.rawBuild.getCause(Cause.UserIdCause).getUserId()
+    return null;
+}
+
+def sendStatusToGenesis(String urlGenesis, String objectId, String event,  String stage, String status, String jobId, String message){
+    if(objectId == null || event == null || stage == null || status == null || jobId == null){
+        println("No se pudo enviar la notificación a Genesis, faltan atributos en sendStatusToGenesis")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['objectId'] = objectId
+    jsonRequestBody['event'] = event
+    jsonRequestBody['message'] = message
+    jsonRequestBody['stage'] = stage
+    jsonRequestBody['status'] = status
+    jsonRequestBody['jobId'] = jobId
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlGenesis}/architecture/update-${event}",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            validResponseCodes: '200:599'
+        )
+        println "Status ${status} in ${stage} was sent"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Status ${status} in ${stage} was sent"
+            return;
+        }
+        error "Error al intentar notificar al cliente Genesis el estado de la ejecucion HTTP: ${e.message}"
+    }   
+}
+
+def saveCreatedRepositoryInGenesis(String urlGenesis, String observableId,  String nameRepo, String urlRepo, String message){
+    if(observableId == null || nameRepo == null || urlRepo == null ){
+        println("No se pudo crear el repo en  Genesis, faltan atributos en saveCreatedRepositoryInGenesis")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['observableId'] = observableId
+    jsonRequestBody['message'] = message
+    jsonRequestBody['nameRepo'] = nameRepo
+    jsonRequestBody['urlRepo'] = urlRepo
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlGenesis}/architecture/create-repo",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            validResponseCodes: '200:599'
+        )
+        println "Repo ${urlRepo}  was sent to Genesis"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Repo ${urlRepo}  was sent to Genesis"
+            return;
+        }
+        error "No se pudo crear el repo en  Genesis, Error en saveCreatedRepositoryInGenesis: ${e.message}"
+    }   
+}
+
+def updateOutPutVariable(String urlGenesis, String observableId, Number linkId,  String nameVariable, valueVariable, String message){
+    if(observableId == null || linkId == null || nameVariable == null || valueVariable == null){
+        println("No se pudo enviar la notificación a Genesis, faltan atributos en sendStatusToGenesis")
+        return;
+    }
+    def jsonRequestBody = [:]
+    jsonRequestBody['observableId'] = observableId
+    jsonRequestBody['linkId'] = linkId
+    jsonRequestBody['nameVariable'] = nameVariable
+    jsonRequestBody['valueVariable'] = valueVariable
+    jsonRequestBody['message'] = message
+                
+    try{
+        def jsonStringRequestBody = groovy.json.JsonOutput.toJson(jsonRequestBody)
+        def response = httpRequest(
+            url: "${urlGenesis}/architecture/update-output-variable",
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: jsonStringRequestBody,
+            validResponseCodes: '200:599'
+        )
+        println "Variable ${nameVariable} : ${valueVariable} was updated"
+    }catch (Exception e) {
+        if(e.message == 'groovy.json.internal.LazyMap'){
+            println "Variable ${nameVariable} : ${valueVariable} was updated"
+            return;
+        }
+        error "Error al intentar notificar al cliente Genesis el estado de la ejecucion HTTP: ${e.message}"
+    }   
+}
+
+def getTrueInputValue(varFile, variableName) {
+    def trueInputVariable = varFile.variables.find { variable ->
+        variable.isInput && variable.name == variableName
+    }
+    return trueInputVariable ? trueInputVariable.value : null
+}
+
 pipeline {
     agent any
 
@@ -6,23 +116,57 @@ pipeline {
     }
     
     stages {     
+        stage('preparation genesis'){
+            steps{
+                script{
+                JENKINS_FILE = readJSON file: 'Jenkinsfile.json'
+
+                if (JENKINS_FILE['observableId'] != null){
+                        def observableIdMap = JENKINS_FILE['observableId'].split(" ")
+                        urlGenesis = observableIdMap[1]
+                        observableId = observableIdMap[0]
+                        try{
+                            println("${urlGenesis}")
+                            sendStatusToGenesis(urlGenesis , observableId, 'process', env.STAGE_NAME, 'Inception', "${env.BUILD_NUMBER}", null);
+                            sendStatusToGenesis(urlGenesis , observableId, 'job', env.STAGE_NAME, env.JOB_NAME, "${env.BUILD_NUMBER}", null);
+                        }catch (Exception e) {
+                            println("Error al obtener el acceso a Genesis HTTP: ${e.message}")
+                            sendStatusToGenesis(urlGenesis, params.id_observable, 'process', env.STAGE_NAME, 'failure', "${env.BUILD_NUMBER}", "Error al configurar el despliegue: ${e}");
+                        }
+                    }
+                }
+            }
+        }
         stage('Install Dependencies') {
             steps {
-                sh 'node -v'
-                sh 'npm -v'
-                sh 'npm i'
+                script {
+                    if (JENKINS_FILE['observableId'] != null){
+                        sendStatusToGenesis(urlGenesis, observableId, 'process', env.STAGE_NAME, 'Installing Dependencies', "${env.BUILD_NUMBER}", null);
+                    }  
+                    sh 'node -v'
+                    sh 'npm -v'
+                    sh 'npm i'
+                }
             }
         }
     
         stage('Unit Tests') {
             steps {
-                sh 'npm test'
+                script {
+                    if (JENKINS_FILE['observableId'] != null){
+                        sendStatusToGenesis(urlGenesis, observableId, 'process', env.STAGE_NAME, 'Unit testing', "${env.BUILD_NUMBER}", null);
+                    }  
+                    sh 'npm test'
+                }
             }
         }
 
         stage('Code Analysis') {
             steps {
                 script {
+                    if (JENKINS_FILE['observableId'] != null){
+                       sendStatusToGenesis(urlGenesis, observableId, 'process', env.STAGE_NAME, 'Code Analysis Sonar', "${env.BUILD_NUMBER}", null);
+                    }  
                     def scannerHome = tool 'SonarScanner'
                     withSonarQubeEnv('SonarCloud') {
                         sh "${scannerHome}/bin/sonar-scanner"
@@ -53,14 +197,28 @@ pipeline {
                             ),
                             string(credentialsId: '	token_github', variable: 'tokenGitHub')
                         ]) {
+                            if (JENKINS_FILE['observableId'] != null){
+                                sendStatusToGenesis(urlGenesis, observableId, 'process', env.STAGE_NAME, 'Deploy Github pages', "${env.BUILD_NUMBER}", null);
+                            } 
                             def jobName = env.JOB_NAME
                             def repoName = jobName.split('/')[1]
                             sh "git remote set-url origin https://${GIT_USERNAME}:${tokenGitHub}@github.com/aishroom/${repoName}"
                             sh 'npm run deploy'
+                            sendStatusToGenesis(urlGenesis , observableId, 'job', env.STAGE_NAME, "finished", "${env.BUILD_NUMBER}", null);
                         }
                 }
             }   
 
         }
     }
+
+     post { 
+        success{
+            script{
+                if (JENKINS_FILE['observableId'] != null){
+                    sendStatusToGenesis(urlGenesis , observableId, 'process', env.STAGE_NAME, 'microfrontent deployed', "${env.BUILD_NUMBER}", "sucess");
+                }   
+            }
+        }
+     }
 }
